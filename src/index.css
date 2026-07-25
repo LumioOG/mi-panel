@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  /* Identidad Lumio: Blueberry + Burgundy */
+  --color-lumio-bg: #F4F2F7;          /* fondo general, lavanda muy claro */
+  --color-lumio-blueberry: #3B2E58;    /* color principal — botones, sidebar, texto fuerte */
+  --color-lumio-blueberry-dark: #241B38;
+  --color-lumio-burgundy: #7A2036;     /* acento — alertas, destacados, comisiones pendientes */
+  --color-lumio-burgundy-light: #FBEAEE;
+  --color-lumio-gold: #C9A15A;         /* resaltados suaves, recordatorios */
+  --color-lumio-green: #4C7A61;        /* estados positivos, "cobrado", "hecho" */
+  --color-lumio-charcoal: #2A2438;     /* texto principal */
+  --color-lumio-gray: #8B8494;
+
+  --font-display: "Fraunces", serif;
+  --font-body: "Inter", sans-serif;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-lumio-bg);
+  color: var(--color-lumio-charcoal);
+}
+
+button, a, input, select, textarea {
+  transition: all 150ms ease;
+}

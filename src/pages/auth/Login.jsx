@@ -1,0 +1,78 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
+
+export default function Login() {
+  const { login } = useAuth()
+  const navigate = useNavigate()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [cargando, setCargando] = useState(false)
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setError('')
+    setCargando(true)
+    const { error } = await login(email, password)
+    setCargando(false)
+    if (error) {
+      setError('Correo o contraseña incorrectos.')
+      return
+    }
+    navigate('/')
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-lumio-blueberry px-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-6">
+          <span className="inline-flex w-14 h-14 rounded-2xl bg-white/10 items-center justify-center mb-4">
+            <span className="font-display text-2xl text-white">L</span>
+          </span>
+          <h1 className="font-display text-2xl text-white">Mi Panel</h1>
+          <p className="text-white/60 text-sm mt-1">Clientes, comisiones y tareas — Lumio</p>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-xl p-8">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm text-lumio-charcoal mb-1.5 font-medium">
+                Correo
+              </label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-xl border border-lumio-gray/20 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-lumio-blueberry/40"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-lumio-charcoal mb-1.5 font-medium">
+                Contraseña
+              </label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-lumio-gray/20 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-lumio-blueberry/40"
+              />
+            </div>
+
+            {error && <p className="text-sm text-lumio-burgundy">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={cargando}
+              className="w-full bg-lumio-blueberry hover:bg-lumio-blueberry-dark text-white font-medium py-2.5 rounded-xl disabled:opacity-60"
+            >
+              {cargando ? 'Ingresando...' : 'Ingresar'}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
