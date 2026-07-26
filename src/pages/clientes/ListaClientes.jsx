@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseClient'
 
@@ -9,36 +9,58 @@ const FORM_VACIO = {
   telefono: '',
   email: '',
   tipo_relacion: 'cliente_lumio',
+  trabajo_id: '',
 }
 
 export default function ListaClientes() {
   const [clientes, setClientes] = useState([])
+  const [trabajos, setTrabajos] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [mostrarForm, setMostrarForm] = useState(false)
   const [form, setForm] = useState(FORM_VACIO)
   const [guardando, setGuardando] = useState(false)
   const [filtro, setFiltro] = useState('todos')
+  const [nuevoTrabajo, setNuevoTrabajo] = useState('')
+  const [mostrarNuevoTrabajo, setMostrarNuevoTrabajo] = useState(false)
 
-  async function cargarClientes() {
+  async function cargarDatos() {
     setCargando(true)
     setError('')
-    const { data, error } = await supabase
-      .from('clientes')
-      .select('*')
-      .order('nombre_empresa', { ascending: true })
+    const [clientesRes, trabajosRes] = await Promise.all([
+      supabase.from('clientes').select('*, trabajos(nombre)').order('nombre_empresa'),
+      supabase.from('trabajos').select('*').order('nombre'),
+    ])
 
-    if (error) {
-      setError('No se pudieron cargar los clientes: ' + error.message)
+    if (clientesRes.error) {
+      setError('No se pudieron cargar los clientes: ' + clientesRes.error.message)
     } else {
-      setClientes(data)
+      setClientes(clientesRes.data)
     }
+    if (trabajosRes.data) setTrabajos(trabajosRes.data)
     setCargando(false)
   }
 
   useEffect(() => {
-    cargarClientes()
+    cargarDatos()
   }, [])
+
+  async function crearTrabajo() {
+    if (!nuevoTrabajo.trim()) return
+    const { data, error } = await supabase
+      .from('trabajos')
+      .insert({ nombre: nuevoTrabajo.trim() })
+      .select()
+      .single()
+    if (error) {
+      setError('No se pudo crear el trabajo: ' + error.message)
+      return
+    }
+    setTrabajos((t) => [...t, data].sort((a, b) => a.nombre.localeCompare(b.nombre)))
+    setForm((f) => ({ ...f, trabajo_id: data.id }))
+    setNuevoTrabajo('')
+    setMostrarNuevoTrabajo(false)
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -51,6 +73,7 @@ export default function ListaClientes() {
       telefono: form.telefono.trim() || null,
       email: form.email.trim() || null,
       tipo_relacion: form.tipo_relacion,
+      trabajo_id: form.tipo_relacion === 'emprendimiento_propio' ? form.trabajo_id || null : null,
     }
 
     const { error } = await supabase.from('clientes').insert(payload)
@@ -64,13 +87,25 @@ export default function ListaClientes() {
 
     setMostrarForm(false)
     setForm(FORM_VACIO)
-    cargarClientes()
+    cargarDatos()
   }
 
   const clientesFiltrados = clientes.filter((c) => {
     if (filtro === 'todos') return true
     return c.tipo_relacion === filtro
   })
+
+  // Cuando el filtro es "Otros trabajos", agrupamos por trabajo para organizarlos mejor
+  const agrupadosPorTrabajo = useMemo(() => {
+    if (filtro !== 'emprendimiento_propio') return null
+    const grupos = {}
+    clientesFiltrados.forEach((c) => {
+      const nombre = c.trabajos?.nombre || 'Sin clasificar'
+      if (!grupos[nombre]) grupos[nombre] = []
+      grupos[nombre].push(c)
+    })
+    return Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b))
+  }, [clientesFiltrados, filtro])
 
   return (
     <div className="p-6">
@@ -84,14 +119,14 @@ export default function ListaClientes() {
         </button>
       </div>
       <p className="text-lumio-gray mb-4">
-        Clientes de Lumio y tus propios emprendimientos, en un solo lugar.
+        Clientes de Lumio y tus otros trabajos, en un solo lugar.
       </p>
 
       <div className="flex gap-2 mb-6">
         {[
           { id: 'todos', nombre: 'Todos' },
           { id: 'cliente_lumio', nombre: 'Clientes Lumio' },
-          { id: 'emprendimiento_propio', nombre: 'Mis emprendimientos' },
+          { id: 'emprendimiento_propio', nombre: 'Otros trabajos' },
         ].map((f) => (
           <button
             key={f.id}
@@ -163,13 +198,67 @@ export default function ListaClientes() {
               <label className="block text-sm text-lumio-charcoal mb-1">Tipo</label>
               <select
                 value={form.tipo_relacion}
-                onChange={(e) => setForm({ ...form, tipo_relacion: e.target.value })}
+                onChange={(e) => setForm({ ...form, tipo_relacion: e.target.value, trabajo_id: '' })}
                 className="w-full rounded-lg border border-lumio-gray/30 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-lumio-blueberry/40"
               >
                 <option value="cliente_lumio">Cliente de Lumio</option>
-                <option value="emprendimiento_propio">Mi propio emprendimiento</option>
+                <option value="emprendimiento_propio">Otro trabajo</option>
               </select>
             </div>
+
+            {form.tipo_relacion === 'emprendimiento_propio' && (
+              <div className="sm:col-span-2 bg-lumio-bg rounded-lg p-4">
+                <label className="block text-sm text-lumio-charcoal mb-1">¿Cuál trabajo?</label>
+                {!mostrarNuevoTrabajo ? (
+                  <div className="flex gap-2">
+                    <select
+                      required
+                      value={form.trabajo_id}
+                      onChange={(e) => setForm({ ...form, trabajo_id: e.target.value })}
+                      className="flex-1 rounded-lg border border-lumio-gray/30 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-lumio-blueberry/40"
+                    >
+                      <option value="">Selecciona</option>
+                      {trabajos.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setMostrarNuevoTrabajo(true)}
+                      className="text-sm text-lumio-blueberry px-3 whitespace-nowrap"
+                    >
+                      + Nuevo
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      autoFocus
+                      value={nuevoTrabajo}
+                      onChange={(e) => setNuevoTrabajo(e.target.value)}
+                      placeholder="Ej. Clear Finance"
+                      className="flex-1 rounded-lg border border-lumio-gray/30 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-lumio-blueberry/40"
+                    />
+                    <button
+                      type="button"
+                      onClick={crearTrabajo}
+                      className="bg-lumio-blueberry text-white text-sm px-3 rounded-lg"
+                    >
+                      Crear
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMostrarNuevoTrabajo(false)}
+                      className="text-sm text-lumio-gray px-2"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3">
@@ -200,34 +289,50 @@ export default function ListaClientes() {
         <p className="text-lumio-gray bg-white rounded-2xl border border-lumio-gray/10 p-5">
           No hay clientes en esta categoría todavía.
         </p>
+      ) : agrupadosPorTrabajo ? (
+        <div className="space-y-8">
+          {agrupadosPorTrabajo.map(([nombreTrabajo, clientesDelTrabajo]) => (
+            <div key={nombreTrabajo}>
+              <h2 className="font-medium text-lumio-charcoal mb-3">{nombreTrabajo}</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {clientesDelTrabajo.map((c) => (
+                  <TarjetaCliente key={c.id} c={c} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {clientesFiltrados.map((c) => (
-            <Link
-              key={c.id}
-              to={`/clientes/${c.id}`}
-              className="block bg-white rounded-2xl shadow-sm border border-lumio-gray/10 p-5 hover:shadow-md hover:border-lumio-blueberry/30 hover:-translate-y-0.5 transition-all"
-            >
-              <div className="flex items-start justify-between mb-2">
-                <p className="font-medium text-lumio-charcoal">{c.nombre_empresa}</p>
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    c.tipo_relacion === 'cliente_lumio'
-                      ? 'bg-lumio-blueberry/10 text-lumio-blueberry'
-                      : 'bg-lumio-gold/20 text-lumio-charcoal'
-                  }`}
-                >
-                  {c.tipo_relacion === 'cliente_lumio' ? 'Lumio' : 'Propio'}
-                </span>
-              </div>
-              {c.nombre_contacto && (
-                <p className="text-sm text-lumio-gray">{c.nombre_contacto}</p>
-              )}
-              {c.telefono && <p className="text-sm text-lumio-gray">{c.telefono}</p>}
-            </Link>
+            <TarjetaCliente key={c.id} c={c} />
           ))}
         </div>
       )}
     </div>
+  )
+}
+
+function TarjetaCliente({ c }) {
+  return (
+    <Link
+      to={`/clientes/${c.id}`}
+      className="block bg-white rounded-2xl shadow-sm border border-lumio-gray/10 p-5 hover:shadow-md hover:border-lumio-blueberry/30 hover:-translate-y-0.5 transition-all"
+    >
+      <div className="flex items-start justify-between mb-2">
+        <p className="font-medium text-lumio-charcoal">{c.nombre_empresa}</p>
+        <span
+          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+            c.tipo_relacion === 'cliente_lumio'
+              ? 'bg-lumio-blueberry/10 text-lumio-blueberry'
+              : 'bg-lumio-gold/20 text-lumio-charcoal'
+          }`}
+        >
+          {c.tipo_relacion === 'cliente_lumio' ? 'Lumio' : 'Propio'}
+        </span>
+      </div>
+      {c.nombre_contacto && <p className="text-sm text-lumio-gray">{c.nombre_contacto}</p>}
+      {c.telefono && <p className="text-sm text-lumio-gray">{c.telefono}</p>}
+    </Link>
   )
 }

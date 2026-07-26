@@ -9,6 +9,7 @@ const FORM_SERVICIO_VACIO = {
   valor_fijo: '',
   valor_comision_lead: '',
   dia_cobro_fijo: '',
+  servicios_incluidos: [],
 }
 
 const NOMBRES_MODELO = {
@@ -71,8 +72,22 @@ export default function DetalleCliente() {
       valor_fijo: cs.valor_fijo || '',
       valor_comision_lead: cs.valor_comision_lead || '',
       dia_cobro_fijo: cs.dia_cobro_fijo || '',
+      servicios_incluidos: cs.servicios_incluidos || [],
     })
     setMostrarForm(true)
+  }
+
+  const servicioSeleccionado = servicios.find((s) => s.id === form.servicio_id)
+  const esMixto = servicioSeleccionado?.nombre?.includes('Mixto')
+  const serviciosBase = servicios.filter((s) => !s.nombre.includes('Mixto'))
+
+  function toggleServicioIncluido(nombre) {
+    setForm((f) => ({
+      ...f,
+      servicios_incluidos: f.servicios_incluidos.includes(nombre)
+        ? f.servicios_incluidos.filter((n) => n !== nombre)
+        : [...f.servicios_incluidos, nombre],
+    }))
   }
 
   async function handleSubmit(e) {
@@ -87,6 +102,7 @@ export default function DetalleCliente() {
       valor_fijo: Number(form.valor_fijo) || 0,
       valor_comision_lead: Number(form.valor_comision_lead) || 0,
       dia_cobro_fijo: form.dia_cobro_fijo ? Number(form.dia_cobro_fijo) : null,
+      servicios_incluidos: esMixto ? form.servicios_incluidos : null,
     }
 
     let resultado
@@ -220,6 +236,27 @@ export default function DetalleCliente() {
               </select>
             </div>
 
+            {esMixto && (
+              <div className="sm:col-span-2 bg-lumio-bg rounded-lg p-4">
+                <p className="text-sm text-lumio-charcoal font-medium mb-2">
+                  ¿Cuáles servicios incluye este "Mixto"?
+                </p>
+                <div className="space-y-1.5">
+                  {serviciosBase.map((s) => (
+                    <label key={s.id} className="flex items-center gap-2 text-sm text-lumio-charcoal">
+                      <input
+                        type="checkbox"
+                        checked={form.servicios_incluidos.includes(s.nombre)}
+                        onChange={() => toggleServicioIncluido(s.nombre)}
+                        className="rounded border-lumio-gray/30 text-lumio-blueberry focus:ring-lumio-blueberry"
+                      />
+                      {s.nombre}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {(form.modelo_cobro === 'fijo_mensual' || form.modelo_cobro === 'mixto') && (
               <>
                 <div>
@@ -309,6 +346,11 @@ export default function DetalleCliente() {
                   {cs.valor_comision_lead > 0 &&
                     ` · $${Number(cs.valor_comision_lead).toLocaleString('es-CO')} por lead`}
                 </p>
+                {cs.servicios_incluidos?.length > 0 && (
+                  <p className="text-xs text-lumio-blueberry mt-1">
+                    Incluye: {cs.servicios_incluidos.join(' + ')}
+                  </p>
+                )}
               </div>
               <div className="space-x-3 whitespace-nowrap">
                 <button
