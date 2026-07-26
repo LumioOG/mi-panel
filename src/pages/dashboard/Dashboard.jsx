@@ -41,7 +41,7 @@ export default function Dashboard() {
           .lte('fecha_publicacion', enDias(7)),
         supabase
           .from('cliente_servicios')
-          .select('id, valor_fijo, dia_cobro_fijo, clientes(nombre_empresa)')
+          .select('id, valor_fijo, dia_cobro_fijo, valor_fijo_2, dia_cobro_fijo_2, frecuencia_pago, clientes(nombre_empresa)')
           .not('dia_cobro_fijo', 'is', null)
           .in('modelo_cobro', ['fijo_mensual', 'mixto']),
         supabase
@@ -78,7 +78,13 @@ export default function Dashboard() {
           const diaDelMes = fecha.getDate()
           csRes.data.forEach((cs) => {
             if (cs.dia_cobro_fijo === diaDelMes) {
-              proximos.push({ ...cs, fecha: fecha.toISOString().slice(0, 10) })
+              proximos.push({ ...cs, fecha: fecha.toISOString().slice(0, 10), valorAviso: cs.valor_fijo })
+            }
+            if (
+              cs.frecuencia_pago === 'quincenal' &&
+              cs.dia_cobro_fijo_2 === diaDelMes
+            ) {
+              proximos.push({ ...cs, fecha: fecha.toISOString().slice(0, 10), valorAviso: cs.valor_fijo_2 })
             }
           })
         }
@@ -126,7 +132,7 @@ export default function Dashboard() {
       if (dia)
         dia.items.push({
           tipo: 'cobro',
-          texto: `Cobrar $${Number(c.valor_fijo).toLocaleString('es-CO')} a ${c.clientes?.nombre_empresa}`,
+          texto: `Cobrar $${Number(c.valorAviso).toLocaleString('es-CO')} a ${c.clientes?.nombre_empresa}`,
         })
     })
     tareasGenerales.forEach((t) => {

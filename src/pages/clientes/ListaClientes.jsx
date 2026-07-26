@@ -317,7 +317,9 @@ function TarjetaCliente({ c }) {
   return (
     <Link
       to={`/clientes/${c.id}`}
-      className="block bg-white rounded-2xl shadow-sm border border-lumio-gray/10 p-5 hover:shadow-md hover:border-lumio-blueberry/30 hover:-translate-y-0.5 transition-all"
+      className={`block bg-white rounded-2xl shadow-sm border border-lumio-gray/10 p-5 hover:shadow-md hover:border-lumio-blueberry/30 hover:-translate-y-0.5 transition-all ${
+        !c.activo ? 'opacity-50' : ''
+      }`}
     >
       <div className="flex items-start justify-between mb-2">
         <p className="font-medium text-lumio-charcoal">{c.nombre_empresa}</p>
@@ -331,6 +333,7 @@ function TarjetaCliente({ c }) {
           {c.tipo_relacion === 'cliente_lumio' ? 'Lumio' : 'Propio'}
         </span>
       </div>
+      {!c.activo && <p className="text-xs text-lumio-gray mb-1">Inactivo</p>}
       {c.nombre_contacto && <p className="text-sm text-lumio-gray">{c.nombre_contacto}</p>}
       {c.telefono && <p className="text-sm text-lumio-gray">{c.telefono}</p>}
     </Link>
